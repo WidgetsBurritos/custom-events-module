@@ -1,0 +1,242 @@
+<?php
+
+/**
+ * @file
+ * Contains tests for the Custom Events module.
+ */
+
+/**
+ * Test case.
+ */
+class CustomUnitTestCase extends DrupalUnitTestCase {
+
+  /**
+   * Implements getInfo().
+   */
+  public static function getInfo() {
+    return array(
+      'name' => t('Unit Test Cases'),
+      'description' => t('TODO: write me.'),
+      'group' => t('Custom Events'),
+    );
+  }
+
+  /**
+   * Implements setUp().
+   */
+  function setUp() {
+    parent::setUp(['custom_events']);
+  }
+
+  /**
+   * Tests custom_events_form_events_node_form_alter().
+   */
+  public function testCustomEventAfterBuildHandlerIsAdded() {
+    $form = [
+      'path' => ['#acccess' => TRUE],
+      'field_event_end_date' => ['#language' => 'en'],
+      '#submit' => [],
+      '#after_build' => [],
+    ];
+    $form_state = [];
+
+    custom_events_form_events_node_form_alter($form, $form_state, '');
+
+    $this->assertTrue(in_array('custom_events_form_events_node_form_after_build', $form['#after_build']));
+  }
+
+  /**
+   * Tests custom_events_form_events_node_form_alter().
+   */
+  public function testExistingEventSubmitHandlerIsNotRemoved() {
+    $form = [
+      'path' => ['#acccess' => TRUE],
+      'field_event_end_date' => ['#language' => 'en'],
+      '#submit' => ['some_form_handler'],
+    ];
+    $form_state = [];
+
+    custom_events_form_events_node_form_alter($form, $form_state, '');
+
+    $this->assertTrue(in_array('some_form_handler', $form['#submit']));
+  }
+
+
+  /**
+   * Tests custom_events_form_events_node_form_alter().
+   */
+  public function testExistingEventAfterBuildHandlerIsNotRemoved() {
+    $form = [
+      'path' => ['#acccess' => TRUE],
+      'field_event_end_date' => ['#language' => 'en'],
+      '#submit' => [],
+      '#after_build' => ['some_after_build'],
+    ];
+    $form_state = [];
+
+    custom_events_form_events_node_form_alter($form, $form_state, '');
+
+    $this->assertTrue(in_array('some_after_build', $form['#after_build']));
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringIsSameDayMonthAndYear() {
+    $expected = 'Jan 31, 2019';
+    $actual = custom_events_generate_date_range_string(2019, 1, 31, 2019, 1, 31);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringIsDifferentDaySameMonthAndYear() {
+    $expected = 'Jan 29 - 31, 2019';
+    $actual = custom_events_generate_date_range_string(2019, 1, 29, 2019, 1, 31);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringIsDifferentDayAndMonthSameYear() {
+    $expected = 'Jan 29 - Feb 2, 2019';
+    $actual = custom_events_generate_date_range_string(2019, 1, 29, 2019, 2, 2);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringIsDifferentMonthSameDayAndYear() {
+    $expected = 'Jan 28 - Feb 28, 2019';
+    $actual = custom_events_generate_date_range_string(2019, 1, 28, 2019, 2, 28);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringIsDifferentMonthDayAndYear() {
+    $expected = 'Dec 28, 2019 - Jan 2, 2020';
+    $actual = custom_events_generate_date_range_string(2019, 12, 28, 2020, 1, 2);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringIsDifferentYearSameMonthAndDay() {
+    $expected = 'Dec 28, 2019 - Dec 28, 2020';
+    $actual = custom_events_generate_date_range_string(2019, 12, 28, 2020, 12, 28);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringAcceptsStringAndIntegerInput() {
+    $expected = 'Dec 28, 2019 - Dec 28, 2020';
+    $actual = custom_events_generate_date_range_string('2019', 12, 28, 2020, '12', '28');
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringReturnsEmptyStringOnInvalidStartDate() {
+    $expected = '';
+    $actual = custom_events_generate_date_range_string(2019, 2, 32, 2019, 3, 1);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringReturnsStartDateStringOnInvalidEndDate() {
+    $expected = 'Feb 27, 2019';
+    $actual = custom_events_generate_date_range_string(2019, 2, 27, 2019, 2, 32);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_date_range_string().
+   */
+  public function testDateRangeStringReturnsStartDateStringOnMissingEndDate() {
+    $expected = 'Feb 27, 2019';
+    $actual = custom_events_generate_date_range_string(2019, 2, 27);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_time_range_string().
+   */
+  public function testTimeRangeIsTheSame() {
+    $start = 1470427474;
+    $end = 1470427474;
+    $timezone = 'Europe/Madrid';
+    $expected = '10:04pm';
+    $actual = custom_events_generate_time_range_string($start, $end, $timezone);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_generate_time_range_string().
+   */
+  public function testTimeRangeIsDifferent() {
+    $start = 1470415474;
+    $end = 1470427574;
+    $timezone = 'Europe/Madrid';
+    $expected = '6:44pm - 10:06pm';
+    $actual = custom_events_generate_time_range_string($start, $end, $timezone);
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Tests custom_events_form_events_node_form_after_build().
+   */
+  public function testTimezoneListDoesntHaveLongyearbyen() {
+    $form['field_event_start_date']['#language'] = 'en';
+    $form['field_event_start_date']['en'][0]['timezone']['timezone']['#options']
+      = ['Arctic/Longyearbyen' => 'Arctic/Longyearbyen'];
+    $form_state = [];
+
+    $form = custom_events_form_events_node_form_after_build($form, $form_state);
+
+    $this->assertFalse(isset($form['field_event_start_date']['en'][0]['timezone']['timezone']['#options']['Arctic/Longyearbyen']));
+  }
+
+  /**
+   * Tests custom_events_form_events_node_form_after_build().
+   */
+  public function testTimezoneListHasMadrid() {
+    $form['field_event_start_date']['#language'] = 'en';
+    $form['field_event_start_date']['en'][0]['timezone']['timezone']['#options']
+      = ['Arctic/Longyearbyen' => 'Arctic/Longyearbyen'];
+    $form_state = [];
+
+    $form = custom_events_form_events_node_form_after_build($form, $form_state);
+
+    $this->assertTrue(isset($form['field_event_start_date']['en'][0]['timezone']['timezone']['#options']['Europe/Madrid']));
+  }
+
+  /**
+   * Tests custom_events_form_events_node_form_alter().
+   */
+  public function testTimezoneIsHiddenForEndDate() {
+    $form = [
+      'path' => ['#acccess' => TRUE],
+      'field_event_end_date' => [
+        '#language' => 'en',
+        0 => ['timezone' => ['#type' => 'date']]
+      ],
+      '#submit' => [],
+    ];
+    $form_state = [];
+
+    custom_events_form_events_node_form_alter($form, $form_state, '');
+    $this->assertEqual('hidden', $form['field_event_end_date']['en'][0]['timezone']['#type']);
+  }
+
+}

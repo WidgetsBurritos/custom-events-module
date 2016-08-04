@@ -1,0 +1,130 @@
+<?php
+
+/**
+ * @file
+ * Contains tests for the Custom Events module.
+ */
+
+/**
+ * Test case.
+ */
+class CustomWebTestCase extends DrupalWebTestCase {
+  protected $profile = 'testing';
+
+  /**
+   * Implements getInfo().
+   */
+  public static function getInfo() {
+    return [
+      'name' => t('Web Test Cases'),
+      'description' => t('TODO: write me.'),
+      'group' => t('Custom Events'),
+    ];
+  }
+
+  /**
+   * Implements setUp().
+   */
+  function setUp() {
+    parent::setUp(['custom_events', 'custom_events_feature']);
+
+    $admin_user = $this->drupalCreateUser([
+      'access administration pages',
+      'administer nodes',
+      'administer site configuration',
+    ]);
+
+    $this->drupalLogin($admin_user);
+
+    // Enable theme.
+    theme_enable(array('subtheme'));
+    variable_set('theme_default', 'subtheme');
+    variable_set('admin_theme', 'seven');
+  }
+
+  /**
+   * Test the time zone dropdown is hidden for the end date field.
+   */
+  function testTimezoneIsHiddenForEndDate() {
+    $this->drupalGet('node/add/events');
+
+    $this->assertNoFieldById('edit-field-event-end-date-und-0-timezone-timezone');
+  }
+
+  /**
+   * Test time zone dropdown is visible for the start date field.
+   */
+  function testTimezoneIsVisibleForStartDate() {
+    $this->drupalGet('node/add/events');
+
+    $this->assertNoFieldById('edit-field-event-start-date-und-0-timezone-timezone');
+  }
+
+  /**
+   * Test that end date timezone actually gets replaced with start timezone.
+   */
+  function testEndDateHasSameTimeZoneAsStartDate() {
+    $expected = 'Europe/Madrid';
+
+    $node = $this->drupalCreateNode([
+      'type' => 'events',
+      'field_event_start_date' => [
+        LANGUAGE_NONE => [
+          [
+            'value' => strtotime('January 19, 2017 3:00PM'),
+            'timezone' => $expected,
+          ]
+        ]
+      ],
+      'field_event_end_date' => [
+        LANGUAGE_NONE => [
+          [
+            'value' => strtotime('January 19, 2017 5:00PM'),
+            'timezone' => 'America/Chicago',
+          ]
+        ]
+      ],
+    ]);
+
+    $actual = $node->field_event_end_date[LANGUAGE_NONE][0]['timezone'];
+    $this->assertEqual($expected, $actual);
+  }
+
+  /**
+   * Test that a generated date string actually shows up on the event page.
+   */
+  function testNodeHasGeneratedDateString() {
+    // Create our test node.
+    $node = $this->drupalCreateNode([
+      'type' => 'events',
+      'title' => 'Test Event',
+      'body' => [LANGUAGE_NONE => [['value' => 'Our event', 'format' => filter_default_format()]]],
+      'field_event_location' => [LANGUAGE_NONE => [['value' => '123 Main St.', 'format' => filter_default_format()]]],
+      'field_event_details' => [LANGUAGE_NONE => [['value' => 'Heres some info about our event.', 'format' => filter_default_format()]]],
+      'field_event_start_date' => [
+        LANGUAGE_NONE => [
+          [
+            'value' => strtotime('January 19, 2017 3:00PM'),
+            'timezone' => 'America/Chicago',
+          ]
+        ]
+      ],
+      'field_event_end_date' => [
+        LANGUAGE_NONE => [
+          [
+            'value' => strtotime('January 21, 2017 5:00PM'),
+            'timezone' => 'America/Chicago',
+          ]
+        ]
+      ],
+    ]);
+
+    // Retrieve the page.
+    $this->drupalGet('node/' . $node->nid);
+
+    // Check page contains the appropriate string.
+    $this->assertRaw('Jan 19 - 21, 2017', 'Page has date range string.');
+  }
+
+}
+

@@ -1,0 +1,10 @@
+name = Custom Events
+description = A simple Drupal 7 module used to illustrate unit and functional testing.
+dependencies[] = date
+dependencies[] = features
+dependencies[] = text
+dependencies[] = views
+core = 7.x
+
+files[] = tests/web_tests.test
+files[] = tests/unit_tests.test

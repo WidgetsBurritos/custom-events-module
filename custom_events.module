@@ -1,0 +1,154 @@
+<?php
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter().
+ */
+function custom_events_form_events_node_form_alter(&$form, &$form_state, $form_id) {
+  // Hide the time zone fields from end date.
+  $hidden_timezone_fields = [
+    'field_event_end_date',
+  ];
+
+  foreach ($hidden_timezone_fields as $hidden_timezone_field) {
+    $field_lang = $form[$hidden_timezone_field]['#language'];
+    $form[$hidden_timezone_field][$field_lang][0]['timezone']['#type'] = 'hidden';
+  }
+
+  $form['#after_build'][] = 'custom_events_form_events_node_form_after_build';
+}
+
+/**
+ * Reduce time zones for each date field to prespecified list.
+ */
+function custom_events_form_events_node_form_after_build($form, &$form_state) {
+  $field_lang = $form['field_event_start_date']['#language'];
+  $form['field_event_start_date'][$field_lang][0]['timezone']['timezone']['#options'] = custom_events_form_event_valid_timezones();
+
+  return $form;
+}
+
+/**
+ * Implements hook_node_presave().
+ */
+function custom_events_node_presave($node) {
+  $fn = __FUNCTION__ . '__' . $node->type;
+  if (function_exists($fn)) {
+    $fn($node);
+  }
+}
+
+/**
+ * Implements hook_node_presave().
+ */
+function custom_events_node_presave__events($node) {
+  $fields = ['field_event_end_date'];
+  foreach ($node->field_event_start_date as $lang => $data) {
+    foreach ($data as $idx => $row) {
+      foreach ($fields as $field) {
+        $node->{$field}[$lang][$idx]['timezone'] = $node->{'field_event_start_date'}[$lang][$idx]['timezone'];
+      }
+    }
+  }
+}
+
+/**
+ * Returns a list of valid timezones.
+ */
+function custom_events_form_event_valid_timezones() {
+  return [
+    'America/New_York' => 'America/New York (EST)',
+    'America/Chicago' => 'America/Chicago (CST)',
+    'America/Denver' => 'America/Denver (MST)',
+    'America/Phoenix' => 'America/Phoenix (MST)',
+    'America/Los_Angeles' => 'America/Los Angeles (PST)',
+    'Europe/Madrid' => 'Europe/Madrid',
+  ];
+}
+
+/**
+ * Generates a date range string based on specified date values.
+ *
+ * If start date is invalid, returns empty string.
+ * If end date is invalid, return start date string.
+ */
+function custom_events_generate_date_range_string($start_year, $start_month, $start_day, $end_year = NULL, $end_month = NULL, $end_day = NULL) {
+  // Validate start date. If invalid, return empty string.
+  try {
+    $start_dt = new DateTime($start_year . '-' . $start_month . '-' . $start_day . ' 00:00:00');
+  }
+  catch (Exception $e) {
+    return '';
+  }
+
+  $start_timestamp = $start_dt->getTimestamp();
+
+  // Validate end date. If invalid, set to start date.
+  try {
+    if (!isset($end_year) || !isset($end_month) || !isset($end_day)) {
+      throw new Exception('No end year');
+    }
+    $end_dt = new DateTime($end_year . '-' . $end_month . '-' . $end_day . ' 00:00:00');
+    $end_timestamp = $end_dt->getTimestamp();
+  }
+  catch (Exception $e) {
+    $end_timestamp = $start_dt->getTimestamp();
+    $end_year = $start_year;
+    $end_month = $start_month;
+    $end_day = $start_day;
+  }
+
+  // If different years, show full dates.
+  if ($start_year != $end_year) {
+    return format_date($start_timestamp, 'custom', 'M j, Y') . ' - ' . format_date($end_timestamp, 'custom', 'M j, Y');
+  }
+  // If different months, show both months.
+  elseif ($start_month != $end_month) {
+    return format_date($start_timestamp, 'custom', 'M j') . ' - ' . format_date($end_timestamp, 'custom', 'M j') . ', ' . $end_year;
+  }
+  // If different days, show different days.
+  elseif ($start_day != $end_day) {
+    return format_date($start_timestamp, 'custom', 'M j') . ' - ' . format_date($end_timestamp, 'custom', 'j') . ', ' . $end_year;
+  }
+
+  // Show start date only.
+  return format_date($start_timestamp, 'custom', 'M j, Y');
+}
+
+/**
+ * Generates a time range string.
+ */
+function custom_events_generate_time_range_string($start_timestamp, $end_timestamp, $timezone = NULL) {
+  if (!isset($timezone)) {
+    $timezone = drupal_get_user_timezone();
+  }
+
+  $start = format_date($start_timestamp, 'custom', 'g:ia', $timezone);
+  $end = format_date($end_timestamp, 'custom', 'g:ia', $timezone);
+
+  $time_range = $start;
+
+  if ($start != $end) {
+    $time_range .= ' - ' . $end;
+  }
+
+  return $time_range;
+}
+
+
+/**
+ * Generates a teaser for the specified text.
+ */
+function custom_events_generate_teaser($string, $max_length = 300) {
+  return substr($string, 0, strpos(wordwrap(strip_tags($string), $max_length), "\n")).'&hellip;';
+}
+
+/**
+ * Takes a date format array and returns year, month, day, hour and minutes.
+ */
+function custom_events_convert_timestamp_to_tokens($timestamp, $timezone = NULL) {
+  if (!isset($timezone)) {
+    $timezone = drupal_get_user_timezone();
+  }
+
+  return explode('-', format_date($timestamp, 'custom', 'Y-m-d', $timezone));
+}
